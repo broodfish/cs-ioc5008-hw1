@@ -1,6 +1,5 @@
 import cv2
-from cv2 import cv2 as cv 
-import PIL.Image
+from cv2 import cv2 as cv
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import tensorflow as tf
@@ -150,9 +149,6 @@ def bias_variable(shape):
     return tf.Variable(initial)
 
 def conv2d(x, W):
-    # stride [1, x_movement, y_movement, 1]
-    # Must have strides[0] = strides[3] = 1  !! the note from Document
-	
     # x 是指圖片數值
     # W 是指weight
     # strides 是指步長，需輸入要是四個維度，而第一個維度與最後一個維度必須為1。第二維度是指X方向，第三維度則是Y方向
@@ -160,15 +156,11 @@ def conv2d(x, W):
     return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
 
 def max_pool_4x4(x):
-    # stride [1, x_movement, y_movement, 1]
-    # 用來避免strides過大導致丟失太多特徵
-    # 這邊可以選用 tf.nn.avg_pool 或是 tf.nn.max_pool，官方範例是用 tf.nn.max_pool
     # strides 是指步長，需輸入要是四個維度，而第一個維度與最後一個維度必須為1。第二維度是指X方向，第三維度則是Y方向
     # strides 第二維度與第三維度設定4是為了減小圖像大小
     return tf.nn.max_pool(x, ksize=[1,4,4,1], strides=[1,4,4,1], padding='VALID')
 
 def Spp_layer(feature_map, spatial_pool_size):
-    print(feature_map.get_shape())
     ############### get feature size ##############
     height=int(feature_map.get_shape()[1])
     width=int(feature_map.get_shape()[2])
@@ -183,10 +175,8 @@ def Spp_layer(feature_map, spatial_pool_size):
         ############### kernel ##############
         window_w = int(np.ceil(width/spatial_pool_size[i]))
         window_h = int(np.ceil(height/spatial_pool_size[i]))
-        #print(feature_map.get_shape())
         ############### max pool ##############
         pooling_out = tf.nn.max_pool(feature_map, ksize=[1, window_h, window_w, 1], strides=[1, stride_h, stride_w, 1],padding='SAME')
-        #print(pooling_out.get_shape())
         if i == 0:
             spp = tf.reshape(pooling_out, [batch_num, -1])
         else:
@@ -200,8 +190,8 @@ def train(data_dir):
     # train your model with images from data_dir
     # the following code is just a placeholder
     # 讀data
-    #image_list, label_list = get_training_file(data_dir)
-    #convert_to_TFRecord(image_list, label_list, data_dir)
+    image_list, label_list = get_training_file(data_dir)
+    convert_to_TFRecord(image_list, label_list, data_dir)
     image, label, height, width = read_and_decode(data_dir + ".tfrecords")
     image = tf.image.resize_images(image, [256, 256])
     image_train, label_train = tf.train.shuffle_batch([image, label], batch_size = 50, capacity = 10000, num_threads = 1, min_after_dequeue = 1000)
@@ -256,7 +246,7 @@ def train(data_dir):
     with tf.Session() as sess:
         saver = tf.train.Saver()
         if os.path.exists('./net/train_model.ckpt'):
-            saver.restore(sess, './net/train_model.ckpt')
+			saver.restore(sess, './net/train_model.ckpt')
         else:
             # 初始化
             init=tf.global_variables_initializer()
@@ -270,7 +260,7 @@ def train(data_dir):
         try:
             print("Start Training!")
             print('************')
-            for i in range(10000):
+            for i in range(500):
                 image_train_batch, label_train_batch = sess.run([image_train, label_train])
                 sess.run(train_step, feed_dict = {xs: image_train_batch, ys: label_train_batch, keep_prob: 0.5})
                 if i % 10 == 0:
@@ -294,9 +284,8 @@ def test(data_dir):
     # make your model give prediction for images from data_dir
     # the following code is just a placeholder
 
-    #image_list = get_testing_file(data_dir)
-    #print(len(image_list))
-    #convert_to_TFRecord2(image_list, data_dir)
+    image_list = get_testing_file(data_dir)
+    convert_to_TFRecord2(image_list, data_dir)
     print('\nDecode Start...')
     filename_queue = tf.train.string_input_producer([data_dir + ".tfrecords"], num_epochs=None)
     
@@ -315,9 +304,9 @@ def test(data_dir):
     image = tf.reshape(image, [height, width, 3])
     image = tf.cast(image, tf.float32) * (1. / 255) - 0.5
     print("Decode DONE!")
+	
     image = tf.image.resize_images(image, [256, 256])
     print(image.get_shape())
-    #input_queue = tf.train.slice_input_producer([image], shuffle = False, num_epochs = 1)
     image_test_batch = tf.train.batch([image], batch_size = 50, capacity = 1040, num_threads = 1, allow_smaller_final_batch=True)
     print(image_test_batch.get_shape())
   
@@ -330,6 +319,7 @@ def test(data_dir):
     
     p=[]
     fp = open("label.txt", "w")
+    fp.write("label\n")
     with tf.Session() as sess:
         # 初始化
         init=tf.local_variables_initializer()
@@ -353,16 +343,12 @@ def test(data_dir):
                 p_list = (np.argmax(pred, axis = 1)).tolist()
                 if i % 10 == 0:
                     print('Iter %d' % (i))
-                print(p_list)
                 fp.writelines(["%s\n" % item  for item in p_list])
             print("Finish Prediction!")
         except tf.errors.OutOfRangeError:
                 print('DONE!')
         finally:
-            print("STOP!")
             coord.request_stop()
-        #coord.join(threads)
-        print(p)
         fp.close()
 
     pass
