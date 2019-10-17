@@ -11,9 +11,9 @@ labels={
      10:'street', 11:'suburb', 12:'tallbuilding'
 }
 
-for i in range(0,len(label)):
+for i in range(0, len(label)):
     index = int(label.iloc[i])
-    label.iloc[i]=labels[index]
+    label.iloc[i] = labels[index]
 	
 prediction = pd.concat([id, label], axis=1)
-prediction.to_csv("./result/prediction2.csv",encoding="utf_8_sig",index=False)
+prediction.to_csv("./result/prediction2.csv", encoding="utf_8_sig", index=False)

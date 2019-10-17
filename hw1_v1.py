@@ -10,7 +10,6 @@ spatial_pool_size = [4, 2, 1]
 spatial_pool_dim = sum([i*i for i in spatial_pool_size])
 n_classes = 13
 
-# 讀檔
 def get_training_file(data_dir):
     images = []
     subfolders = []
@@ -30,7 +29,7 @@ def get_training_file(data_dir):
     for a_folder in subfolders:
         n_img = len(os.listdir(a_folder))
         labels = np.append(labels, n_img * [count])
-        count+=1
+        count += 1
     
     subfolders = np.array([images, labels])
     subfolders = subfolders.transpose()
@@ -60,10 +59,9 @@ def int64_feature(value):
 def bytes_feature(value):
     return tf.train.Feature(bytes_list = tf.train.BytesList(value = [value]))
 
-# 轉成TFRecord
 def convert_to_TFRecord(images, labels, filename):
     n_samples = len(labels)
-    TFWriter = tf.python_io.TFRecordWriter(filename+'.tfrecords')
+    TFWriter = tf.python_io.TFRecordWriter(filename + '.tfrecords')
     
     print('\nTransform start...')
     for i in np.arange(0, n_samples):
@@ -115,7 +113,6 @@ def convert_to_TFRecord2(images, filename):
     TFWriter.close()
     print('Transform done!')
 
-# 讀&解碼TFrecord
 def read_and_decode(filename):
     print('\nDecode Start...')
     filename_queue = tf.train.string_input_producer([filename], num_epochs=None)
@@ -141,7 +138,7 @@ def read_and_decode(filename):
     return image, label, height, width
 
 def weight_variable(shape):
-    initial = tf.truncated_normal(shape, stddev=0.1)#隨機變量
+    initial = tf.truncated_normal(shape, stddev=0.1)
     return tf.Variable(initial)
 
 def bias_variable(shape):
@@ -149,21 +146,15 @@ def bias_variable(shape):
     return tf.Variable(initial)
 
 def conv2d(x, W):
-    # x 是指圖片數值
-    # W 是指weight
-    # strides 是指步長，需輸入要是四個維度，而第一個維度與最後一個維度必須為1。第二維度是指X方向，第三維度則是Y方向
-    # padding方式，padding='SAME' or 'VALID'
     return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
 
 def max_pool_4x4(x):
-    # strides 是指步長，需輸入要是四個維度，而第一個維度與最後一個維度必須為1。第二維度是指X方向，第三維度則是Y方向
-    # strides 第二維度與第三維度設定4是為了減小圖像大小
     return tf.nn.max_pool(x, ksize=[1,4,4,1], strides=[1,4,4,1], padding='VALID')
 
 def Spp_layer(feature_map, spatial_pool_size):
     ############### get feature size ##############
-    height=int(feature_map.get_shape()[1])
-    width=int(feature_map.get_shape()[2])
+    height = int(feature_map.get_shape()[1])
+    width = int(feature_map.get_shape()[2])
     ############### get batch size ##############
     batch_num = 50
 
@@ -189,7 +180,6 @@ def Spp_layer(feature_map, spatial_pool_size):
 def train(data_dir):
     # train your model with images from data_dir
     # the following code is just a placeholder
-    # 讀data
     image_list, label_list = get_training_file(data_dir)
     convert_to_TFRecord(image_list, label_list, data_dir)
     image, label, height, width = read_and_decode(data_dir + ".tfrecords")
@@ -205,12 +195,11 @@ def train(data_dir):
     height = int(xs.get_shape()[1])
     width = int(xs.get_shape()[2])
     x_image = tf.reshape(xs, [-1, height, width, 3])
-    # -1是指放棄資料原有的所有維度，256,256則是新給維度，1則是指說資料只有一個數值(黑白)，若是彩色則為3(RGB)
     
     # CNN model
     
     ##conv1 layer##
-    W_conv1 = weight_variable([11, 11, 3, 32]) # patch 11x11, in size 3(image的厚度), out size 96
+    W_conv1 = weight_variable([11, 11, 3, 32])
     b_conv1 = bias_variable([32])
     h_conv1 = tf.nn.relu(conv2d(x_image, W_conv1) + b_conv1) ## conv
     h_pool1 = max_pool_4x4(h_conv1) ## pool
@@ -225,7 +214,7 @@ def train(data_dir):
     W_fc1 = weight_variable([spatial_pool_dim*64,512])
     b_fc1 = bias_variable([512])
     
-    h_pool2_flat = tf.reshape(h_pool2, [-1, spatial_pool_dim*64]) # [n_samples, 16, 16, 128] -> [n_samples, 16*16*128]
+    h_pool2_flat = tf.reshape(h_pool2, [-1, spatial_pool_dim*64])
     h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
     h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob) ## dropout
     
@@ -239,7 +228,7 @@ def train(data_dir):
     
     train_step = tf.train.AdamOptimizer(1e-5).minimize(cross_entropy)
     
-    correct_prediction = tf.equal(tf.argmax(prediction,1), tf.argmax(ys,1))
+    correct_prediction = tf.equal(tf.argmax(prediction, 1), tf.argmax(ys, 1))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
     
     
@@ -248,14 +237,11 @@ def train(data_dir):
         if os.path.exists('./net/train_model.ckpt'):
 			saver.restore(sess, './net/train_model.ckpt')
         else:
-            # 初始化
-            init=tf.global_variables_initializer()
+            init = tf.global_variables_initializer()
             sess.run(init)
         
-        # 建立執行緒協調器
         coord = tf.train.Coordinator()
-        # 啟動文件對列，開始讀取文件
-        threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+        threads = tf.train.start_queue_runners(sess = sess, coord = coord)
         
         try:
             print("Start Training!")
@@ -306,9 +292,7 @@ def test(data_dir):
     print("Decode DONE!")
 	
     image = tf.image.resize_images(image, [256, 256])
-    print(image.get_shape())
     image_test_batch = tf.train.batch([image], batch_size = 50, capacity = 1040, num_threads = 1, allow_smaller_final_batch=True)
-    print(image_test_batch.get_shape())
   
     # define placeholder for inputs to network
     xs = tf.placeholder(tf.float32, [None, 256, 256, 3])   # 256x256
@@ -322,7 +306,7 @@ def test(data_dir):
     fp.write("label\n")
     with tf.Session() as sess:
         # 初始化
-        init=tf.local_variables_initializer()
+        init = tf.local_variables_initializer()
         sess.run(init)
 
         saver = tf.train.import_meta_graph("./net/train_model.ckpt.meta")
@@ -334,7 +318,7 @@ def test(data_dir):
         prediction = tf.get_collection("pred_network")[0]
 
         coord = tf.train.Coordinator()
-        threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+        threads = tf.train.start_queue_runners(sess = sess, coord = coord)
         try:
             for i in range(0,21):
                 image_test = sess.run([image_test_batch])
